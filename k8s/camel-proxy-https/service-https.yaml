@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: camel-proxy
   annotations:
-    service.alpha.openshift.io/serving-cert-secret-name: camel-proxy-tls
+    service.alpha.openshift.io/serving-cert-secret-name: camel-proxy
 spec:
   selector:
     app: camel-proxy

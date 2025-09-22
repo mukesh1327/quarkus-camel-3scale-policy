@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/name: camel-proxy
 spec:
   lookupPolicy:
-    local: false
+    local: true
   tags:
     - name: latest
       from:
