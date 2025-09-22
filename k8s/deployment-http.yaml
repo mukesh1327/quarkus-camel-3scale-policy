@@ -1,0 +1,32 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: camel-proxy-http
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camel-proxy-http
+  template:
+    metadata:
+      labels:
+        app: camel-proxy-http
+    spec:
+      containers:
+        - resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          name: camel-proxy-http
+          env:
+            - name: HTTPS_ENABLED
+              value: 'false'
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          imagePullPolicy: Always
+          image: 'camel-proxy:latest'

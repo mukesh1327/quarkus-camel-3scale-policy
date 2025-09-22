@@ -1,0 +1,99 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: camel-proxy
+
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: camel-proxy
+  template:
+    metadata:
+      labels:
+        app: camel-proxy
+    spec:
+      volumes:
+        - name: tls-secret
+          secret:
+            secretName: camel-proxy-tls
+            defaultMode: 420
+        - name: tls-p12
+          emptyDir: {}
+        - name: camel-proxy-truststore
+          configMap:
+            name: camel-proxy-truststore
+            defaultMode: 420
+      initContainers:
+        - name: init-tls
+          image: 'registry.redhat.io/openshift4/network-tools-rhel8@sha256:7dda9326091cc06ab002bf6bdbddea0830235f5c4e85df72d3a828736898587a'
+          command:
+                  - /bin/sh
+                  - '-c'
+                  - |
+                    echo "[INFO] Checking for TLS files..."
+                    CRT_FILE="/tls/tls.crt"
+                    KEY_FILE="/tls/tls.key"
+
+                    if [ -f "$CRT_FILE" ] && [ -f "$KEY_FILE" ]; then
+                      echo "[INFO] TLS certificate and key found."
+                      echo "[INFO] Creating output directory: /tls-p12"
+                      mkdir -p /tls-p12
+
+                      echo "[INFO] Generating PKCS12 keystore from PEM..."
+                      openssl pkcs12 -export \
+                        -in "$CRT_FILE" \
+                        -inkey "$KEY_FILE" \
+                        -out /tls-p12/server-keystore.p12 \
+                        -name camel-server \
+                        -passout pass:password
+
+                      if [ $? -eq 0 ]; then
+                        echo "[SUCCESS] Keystore generated successfully at /tls-p12/server-keystore.p12"
+                      else
+                        echo "[ERROR] Failed to generate PKCS12 keystore!"
+                        exit 1
+                      fi
+                    else
+                      echo "[WARN] TLS files not found in /tls. Skipping PKCS12 generation."
+                    fi
+          resources: {}
+          volumeMounts:
+            - name: tls-secret
+              mountPath: /tls
+            - name: tls-p12
+              mountPath: /tls-p12
+          imagePullPolicy: Always
+      containers:
+        - resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          name: camel-proxy
+          env:
+            - name: KEYSTORE_FILE
+              value: /tls-p12/server-keystore.p12
+            - name: KEYSTORE_PASSWORD
+              value: password
+            - name: KEYSTORE_KEY_PASSWORD
+              value: password
+            - name: HTTPS_ENABLED
+              value: 'true'
+            - name: CLIENT_TRUSTSTORE_FILE
+              value: /tls-p12/truststore-tapisrv2.p12
+            - name: CLIENT_TRUSTSTORE_PASSWORD
+              value: password
+          ports:
+            - containerPort: 8443
+              protocol: TCP
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: tls-p12
+              mountPath: /tls-p12
+            - name: camel-proxy-truststore
+              mountPath: /tls-p12/truststore-tapisrv2.p12
+              subPath: truststore-tapisrv2.p12
+          image: 'camel-proxy:v2.1'

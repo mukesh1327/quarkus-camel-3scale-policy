@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: camel-proxy-http
+spec:
+  selector:
+    app: camel-proxy-http
+  ports:
+    - port: 8080
+      targetPort: 8080
